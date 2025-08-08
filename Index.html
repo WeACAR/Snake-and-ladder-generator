@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>مولّد لوحة السلم والثعبان</title>
+    <style>
+      :root {
+        --cell-size: 56px; /* حجم المربعات */
+        --board-bg: #faf7ef; /* لون خلفية اللوحة */
+        --cell-bg: #ffffff; /* لون المربع العادي */
+        --cell-border: #2b2b2b; /* لون حدود المربع */
+        --text: #1f1f1f; /* لون النص */
+        --seq-color: #6b7280; /* لون رقم الترتيب */
+        --rand-color: #111827; /* لون الرقم العشوائي */
+        --card-yellow: #ffe566; /* لون الكرت الأصفر */
+        --card-red: #ff6b6b; /* لون الكرت الأحمر */
+        --ladder: #22c55e; /* لون السلم */
+        --ladder-rungs: #134e4a; /* لون درجات السلم */
+        --snake: #8b5e3c; /* لون الثعبان */
+        --panel-bg: #fff; /* خلفية لوحة التحكم */
+        --panel-border: #e5e7eb; /* حدود لوحة التحكم */
+        --accent: #0ea5e9; /* لون الأزرار */
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f6f7fb;
+        color: var(--text);
+        font-family: "Tajawal", system-ui, Segoe UI, Roboto, Arial;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) 1fr;
+        gap: 16px;
+        padding: 16px;
+        align-items: start;
+      }
+
+      /* لوحة التحكم */
+      .panel {
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        padding: 16px;
+        position: sticky;
+        top: 12px;
+        max-height: calc(100vh - 24px);
+        overflow: auto;
+      }
+      .panel h1 {
+        margin: 0.25rem 0 1rem;
+        font-size: 1.25rem;
+      }
+      fieldset {
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        margin: 10px 0;
+        padding: 12px;
+      }
+      legend {
+        padding: 0 6px;
+        color: #374151;
+        font-weight: 700;
+      }
+      label {
+        display: block;
+        margin: 0.4rem 0;
+        font-size: 0.95rem;
+      }
+      input[type="number"],
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        padding: 0.55rem 0.6rem;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+      }
+      textarea {
+        min-height: 72px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .row3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+      .hide {
+        display: none;
+      }
+      .btn {
+        cursor: pointer;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 0.6rem 0.9rem;
+        font-weight: 700;
+      }
+      .btn.secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+      .btn.danger {
+        background: #ef4444;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0.4rem 0;
+      }
+
+      .warnings {
+        background: #fff8e1;
+        border: 1px solid #fde68a;
+        color: #92400e;
+        border-radius: 10px;
+        padding: 8px;
+        margin: 8px 0;
+        display: none;
+      }
+      .warnings ul {
+        margin: 0.3rem 1rem;
+      }
+
+      /* اللوحة */
+      #boardWrapper {
+        position: relative;
+        width: max-content;
+        max-width: 100%;
+        overflow: auto;
+        padding: 8px;
+        background: var(--board-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+      }
+      .board {
+        display: grid;
+        gap: 0;
+        border: 2px solid var(--cell-border);
+        background: var(--board-bg);
+        position: relative;
+      }
+      .cell {
+        position: relative;
+        width: var(--cell-size);
+        height: var(--cell-size);
+        border: 1px solid var(--cell-border);
+        background: var(--cell-bg);
+        overflow: hidden;
+      }
+      .cell .seq {
+        position: absolute;
+        top: 3px;
+        inset-inline-start: 4px;
+        font-size: 11px;
+        color: var(--seq-color);
+      }
+      .cell .val {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 16px;
+        color: var(--rand-color);
+      }
+      .cell img.preview {
+        position: absolute;
+        inset: 2px;
+        object-fit: cover;
+        width: calc(100% - 4px);
+        height: calc(100% - 4px);
+        opacity: 0.28;
+        pointer-events: none;
+        border-radius: 6px;
+      }
+
+      .cell.card-yellow {
+        background: linear-gradient(180deg, #fffad1, #ffe566);
+      }
+      .cell.card-red {
+        background: linear-gradient(180deg, #ffd6d6, #ff8a8a);
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .ladder-rail {
+        stroke: var(--ladder);
+        stroke-width: 0.22;
+      }
+      .ladder-rung {
+        stroke: var(--ladder-rungs);
+        stroke-width: 0.12;
+      }
+      .snake-body {
+        fill: none;
+        stroke: var(--snake);
+        stroke-width: 0.28;
+      }
+      .snake-head {
+        fill: var(--snake);
+      }
+
+      /* نافذة تحرير المربع */
+      dialog {
+        border: none;
+        border-radius: 14px;
+        max-width: 520px;
+        width: min(92vw, 520px);
+        padding: 0;
+      }
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.35);
+      }
+      .modal {
+        padding: 14px;
+      }
+      .modal header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .list-links {
+        display: grid;
+        gap: 6px;
+      }
+      .list-links .row {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      /* قابلية التخصيص السريعة */
+      .theme-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .theme-controls label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="panel">
+        <h1>مولّد لوحة السلم والثعبان</h1>
+        <form id="configForm">
+          <fieldset>
+            <legend>إعداد اللوحة</legend>
+            <div class="row">
+              <label
+                >عدد الخطوات (خانات)
+                <input
+                  id="steps"
+                  type="number"
+                  min="10"
+                  step="10"
+                  value="100"
+                />
+              </label>
+              <label
+                >عدد الأعمدة في الصف
+                <input id="cols" type="number" min="4" max="15" value="10" />
+              </label>
+            </div>
+            <div class="row">
+              <label
+                >ملء أرقام الخانات (1–10) عشوائياً؟
+                <select id="fillRandomVals">
+                  <option value="yes">نعم</option>
+                  <option value="no">لا، أضبطها يدوياً</option>
+                </select>
+              </label>
+              <label
+                >فتح محرر مجمّع
+                <button type="button" class="btn secondary" id="openBulk">
+                  تحرير القيم/الأسئلة
+                </button>
+              </label>
+            </div>
+            <div class="theme-controls">
+              <label
+                >لون أصفر<input type="color" id="themeYellow" value="#ffe566"
+              /></label>
+              <label
+                >لون أحمر<input type="color" id="themeRed" value="#ff6b6b"
+              /></label>
+              <label
+                >لون السلم<input type="color" id="themeLadder" value="#22c55e"
+              /></label>
+              <label
+                >لون الثعبان<input type="color" id="themeSnake" value="#8b5e3c"
+              /></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>الكروت (أصفر/أحمر)</legend>
+            <label
+              ><input id="cardsRandom" type="checkbox" checked /> توزيع
+              عشوائي</label
+            >
+            <div id="cardsRandomFields" class="row">
+              <label
+                >نسبة الكروت من إجمالي الخانات (0–35%)
+                <input
+                  id="cardsDensity"
+                  type="range"
+                  min="0"
+                  max="35"
+                  step="1"
+                  value="20"
+                />
+                <span id="cardsDensityOut" class="muted">20%</span>
+              </label>
+              <label
+                >نسبة الأحمر من الكروت
+                <input
+                  id="redShare"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="50"
+                />
+                <span id="redShareOut" class="muted">50%</span>
+                <div>
+                  <label class="muted"
+                    ><input id="randomizeShare" type="checkbox" /> اجعل النسبة
+                    عشوائية</label
+                  >
+                </div>
+              </label>
+            </div>
+            <div id="cardsManualFields" class="hide">
+              <p class="muted">
+                انقر أي مربع بعد الرسم لتحديد نوع الكرت يدوياً أو أضفه من
+                المحرر.
+              </p>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>السلالم والثعابين</legend>
+            <label
+              ><input id="linksRandom" type="checkbox" checked /> توليد
+              عشوائي</label
+            >
+            <div id="linksRandomFields" class="row">
+              <label
+                >عدد السلالم
+                <input id="ladderCount" type="number" min="0" value="5" />
+              </label>
+              <label
+                >عدد الثعابين
+                <input id="snakeCount" type="number" min="0" value="5" />
+              </label>
+            </div>
+            <div id="linksManualFields" class="hide">
+              <div class="list-links" id="linksList"></div>
+              <div class="toolbar">
+                <button type="button" class="btn" id="addLadder">+ سلم</button>
+                <button type="button" class="btn" id="addSnake">+ ثعبان</button>
+                <button type="button" class="btn secondary" id="clearLinks">
+                  مسح الروابط
+                </button>
+              </div>
+              <p class="muted">
+                السلم: من خانة أصغر إلى خانة أكبر. الثعبان: من خانة أكبر إلى
+                خانة أصغر.
+              </p>
+            </div>
+          </fieldset>
+
+          <div class="warnings" id="warnings">
+            <strong>أخطاء التحقق:</strong>
+            <ul id="warnList"></ul>
+          </div>
+
+          <div class="toolbar">
+            <button class="btn" type="submit">ارسم اللوحة</button>
+            <button class="btn secondary" id="exportJSON" type="button">
+              تصدير الإعدادات
+            </button>
+            <input
+              type="file"
+              id="importJSON"
+              accept="application/json"
+              class="hide"
+            />
+            <button class="btn secondary" id="importBtn" type="button">
+              استيراد
+            </button>
+          </div>
+        </form>
+      </aside>
+
+      <main>
+        <div id="boardWrapper">
+          <div id="board" class="board"></div>
+          <svg
+            id="overlay"
+            class="overlay"
+            viewBox="0 0 10 10"
+            preserveAspectRatio="none"
+          ></svg>
+        </div>
+        <p class="muted">ابدأ من أسفل اليمين ⬇️➡️ ويتعاكس اتجاه كل صف.</p>
+      </main>
+    </div>
+
+    <!-- محرر خانة -->
+    <dialog id="cellDialog">
+      <div class="modal">
+        <header>
+          <h3>تحرير خانة <span id="cellDialogStep"></span></h3>
+          <button class="btn secondary" type="button" id="closeCell">
+            إغلاق
+          </button>
+        </header>
+        <div class="row">
+          <label
+            >الرقم داخل الخانة (1–10)
+            <input id="cellVal" type="number" min="1" max="10" value="1" />
+          </label>
+          <label
+            >نوع الخانة
+            <select id="cellCard">
+              <option value="none">عادية</option>
+              <option value="yellow">كرت أصفر</option>
+              <option value="red">كرت أحمر</option>
+            </select>
+          </label>
+        </div>
+        <label
+          >سؤال الخانة
+          <textarea id="cellQ"></textarea>
+        </label>
+        <label
+          >صورة اختيارية
+          <input id="cellImg" type="file" accept="image/*" />
+        </label>
+        <div class="toolbar">
+          <button id="saveCell" class="btn" type="button">حفظ</button>
+          <button id="clearImg" class="btn danger" type="button">
+            حذف الصورة
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- محرر مجمّع بسيط -->
+    <dialog id="bulkDialog">
+      <div class="modal">
+        <header>
+          <h3>تحرير القيم/الأسئلة على دفعات</h3>
+          <button class="btn secondary" type="button" id="closeBulk">
+            إغلاق
+          </button>
+        </header>
+        <p class="muted">
+          اكتب أرقام مفصولة بفواصل للقيم (1–10). سيتم توزيعها بالتتابع على
+          الخانات، ويمكنك تعديل أي خانة لاحقاً.
+        </p>
+        <label
+          >القيم (مثال: 5,8,2,9,10,3)
+          <input id="bulkValues" type="text" placeholder="5,8,2,9" />
+        </label>
+        <label
+          >سؤال يُطبق على كل الخانات المحددة (اختياري)
+          <input id="bulkQuestion" type="text" placeholder="سؤال عام" />
+        </label>
+        <label
+          >نطاق الخانات (مثال: 1-20)
+          <input id="bulkRange" type="text" placeholder="1-20" />
+        </label>
+        <div class="toolbar">
+          <button id="applyBulk" class="btn" type="button">تطبيق</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script>
+      // === نموذج البيانات ===
+      let state = {
+        steps: 100,
+        cols: 10,
+        cells: [], // [{val:1..10, card:'none'|'yellow'|'red', q:'', imgUrl:null}]
+        ladders: [], // [{from: n, to: n}]
+        snakes: [], // [{from: n, to: n}]
+      };
+
+      // Helpers
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+      // عناصر DOM أساسية
+      const boardEl = $("#board");
+      const overlayEl = $("#overlay");
+      const form = $("#configForm");
+
+      // ضبط المخرجات الحية لمحددات النسبة
+      const dens = $("#cardsDensity");
+      const densOut = $("#cardsDensityOut");
+      const redShare = $("#redShare");
+      const redShareOut = $("#redShareOut");
+      dens.addEventListener(
+        "input",
+        () => (densOut.textContent = dens.value + "%")
+      );
+      redShare.addEventListener(
+        "input",
+        () => (redShareOut.textContent = redShare.value + "%")
+      );
+
+      // تبديل حقول العشوائية واليدوي
+      const toggleArea = (chk, randFields, manualFields) => {
+        const update = () => {
+          randFields.classList.toggle("hide", !chk.checked);
+          manualFields.classList.toggle("hide", chk.checked);
+        };
+        chk.addEventListener("change", update);
+        update();
+      };
+      toggleArea(
+        $("#cardsRandom"),
+        $("#cardsRandomFields"),
+        $("#cardsManualFields")
+      );
+      toggleArea(
+        $("#linksRandom"),
+        $("#linksRandomFields"),
+        $("#linksManualFields")
+      );
+
+      // تغيير الثيم السريع
+      const themeMap = [
+        ["#themeYellow", "--card-yellow"],
+        ["#themeRed", "--card-red"],
+        ["#themeLadder", "--ladder"],
+        ["#themeSnake", "--snake"],
+      ];
+      themeMap.forEach(([id, varName]) => {
+        $(id).addEventListener("input", (e) => {
+          document.documentElement.style.setProperty(varName, e.target.value);
+          drawBoard();
+        });
+      });
+
+      // تهيئة الحالة الابتدائية
+      function initCells(steps) {
+        state.cells = Array.from({ length: steps }, () => ({
+          val: 1 + Math.floor(Math.random() * 10),
+          card: "none",
+          q: "",
+          imgUrl: null,
+        }));
+      }
+
+      // تحويل رقم خانة إلى إحداثيات شبكة SVG/GRID
+      function posFromStep(step, cols, rows) {
+        // step: 1..N ، البداية أسفل يمين
+        const zero = step - 1;
+        const row = Math.floor(zero / cols); // 0 في الأسفل
+        const colInRow = zero % cols;
+        const gridRow = rows - row; // grid rows تبدأ من الأعلى
+        const gridCol = row % 2 === 0 ? cols - colInRow : colInRow + 1;
+        // إحداثيات SVG (عرض = cols، ارتفاع = rows)
+        const svgX = gridCol - 0.5;
+        const svgY = gridRow - 0.5;
+        return { gridRow, gridCol, svgX, svgY };
+      }
+
+      function rowsCount() {
+        return Math.ceil(state.steps / state.cols);
+      }
+
+      // رسم اللوحة
+      function drawBoard() {
+        const rows = rowsCount();
+        boardEl.style.setProperty(
+          "grid-template-columns",
+          `repeat(${state.cols}, var(--cell-size))`
+        );
+        boardEl.style.setProperty(
+          "grid-template-rows",
+          `repeat(${rows}, var(--cell-size))`
+        );
+        boardEl.innerHTML = "";
+
+        // ضبط viewBox للـ SVG
+        overlayEl.setAttribute("viewBox", `0 0 ${state.cols} ${rows}`);
+        overlayEl.innerHTML = "";
+
+        for (let s = 1; s <= state.steps; s++) {
+          const cell = state.cells[s - 1] || {
+            val: "",
+            card: "none",
+            q: "",
+            imgUrl: null,
+          };
+          const { gridRow, gridCol } = posFromStep(s, state.cols, rows);
+          const el = document.createElement("div");
+          el.className =
+            "cell" +
+            (cell.card === "yellow"
+              ? " card-yellow"
+              : cell.card === "red"
+              ? " card-red"
+              : "");
+          el.style.gridRow = gridRow;
+          el.style.gridColumn = gridCol;
+          el.dataset.step = s;
+          el.title = buildTitleForCell(s, cell);
+
+          if (cell.imgUrl) {
+            const img = document.createElement("img");
+            img.className = "preview";
+            img.src = cell.imgUrl;
+            el.appendChild(img);
+          }
+
+          const seq = document.createElement("div");
+          seq.className = "seq";
+          seq.textContent = s;
+          const val = document.createElement("div");
+          val.className = "val";
+          val.textContent = cell.val ?? "";
+          el.appendChild(seq);
+          el.appendChild(val);
+
+          el.addEventListener("click", () => openCellEditor(s));
+          boardEl.appendChild(el);
+        }
+
+        // نص البداية والنهاية (للتوضيح البصري)
+        placeLabel(1, "Start");
+        placeLabel(state.steps, "End");
+
+        // رسم السلالم والثعابين
+        for (const L of state.ladders) drawLadder(L.from, L.to);
+        for (const S of state.snakes) drawSnake(S.from, S.to);
+      }
+
+      function buildTitleForCell(s, cell) {
+        const parts = [`#${s}`, `قيمة: ${cell.val}`];
+        if (cell.card === "yellow") parts.push("كرت أصفر");
+        if (cell.card === "red") parts.push("كرت أحمر");
+        if (cell.q) parts.push(`سؤال: ${cell.q}`);
+        return parts.join("\n");
+      }
+
+      // ملصق SVG بسيط
+// ✅ عرض start و end داخل نفس المربع بشكل مميز
+function placeLabel(step, text) {
+  const cellEl = document.querySelector(`.cell[data-step="${step}"]`);
+  if (!cellEl) return;
+
+  const label = document.createElement('div');
+  label.className = 'cell-label';
+  label.textContent = text;
+
+  // تلوين خاص + تمييز بصري
+  if (text === 'Start') {
+    label.style.position = 'absolute';
+    label.style.bottom = '2px';
+    label.style.right = '4px';
+    label.style.fontSize = '10px';
+    label.style.background = '#2563eb';
+    label.style.color = 'white';
+    label.style.padding = '1px 4px';
+    label.style.borderRadius = '8px';
+    cellEl.style.border = '2px solid #2563eb';
+  } else if (text === 'End') {
+    label.style.position = 'absolute';
+    label.style.top = '2px';
+    label.style.left = '4px';
+    label.style.fontSize = '10px';
+    label.style.background = '#ef4444';
+    label.style.color = 'white';
+    label.style.padding = '1px 4px';
+    label.style.borderRadius = '8px';
+    cellEl.style.border = '2px solid #ef4444';
+  }
+
+  cellEl.appendChild(label);
+}
+
+      // رسم السلم (سِكّتين ودرجات)
+      function drawLadder(from, to) {
+        const rows = rowsCount();
+        const a = posFromStep(from, state.cols, rows);
+        const b = posFromStep(to, state.cols, rows);
+        const dx = b.svgX - a.svgX;
+        const dy = b.svgY - a.svgY;
+        const nx = -dy,
+          ny = dx; // متجه عمودي
+        const len = Math.hypot(nx, ny) || 1;
+        const off = 0.18; // عرض السلم
+        const ox = (nx / len) * off,
+          oy = (ny / len) * off;
+
+        const mk = (tag, attrs) => {
+          const el = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            tag
+          );
+          for (const k in attrs) el.setAttribute(k, attrs[k]);
+          return el;
+        };
+
+        const rail1 = mk("line", {
+          x1: a.svgX - ox,
+          y1: a.svgY - oy,
+          x2: b.svgX - ox,
+          y2: b.svgY - oy,
+          class: "ladder-rail",
+        });
+        const rail2 = mk("line", {
+          x1: a.svgX + ox,
+          y1: a.svgY + oy,
+          x2: b.svgX + ox,
+          y2: b.svgY + oy,
+          class: "ladder-rail",
+        });
+        overlayEl.appendChild(rail1);
+        overlayEl.appendChild(rail2);
+
+        const rungs = 6;
+        for (let i = 1; i < rungs; i++) {
+          const t = i / rungs;
+          const x = a.svgX + dx * t;
+          const y = a.svgY + dy * t;
+          const rung = mk("line", {
+            x1: x - ox,
+            y1: y - oy,
+            x2: x + ox,
+            y2: y + oy,
+            class: "ladder-rung",
+          });
+          overlayEl.appendChild(rung);
+        }
+      }
+
+      // رسم الثعبان (مسار بيزييه + رأس)
+      function drawSnake(from, to) {
+        const rows = rowsCount();
+        const a = posFromStep(from, state.cols, rows);
+        const b = posFromStep(to, state.cols, rows);
+        const mk = (tag, attrs) => {
+          const el = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            tag
+          );
+          for (const k in attrs) el.setAttribute(k, attrs[k]);
+          return el;
+        };
+        const midX = (a.svgX + b.svgX) / 2;
+        const midY = (a.svgY + b.svgY) / 2;
+        const c1x = (a.svgX * 2 + midX) / 3,
+          c1y = (a.svgY * 2 + midY) / 3 - 0.6;
+        const c2x = (b.svgX * 2 + midX) / 3,
+          c2y = (b.svgY * 2 + midY) / 3 + 0.6;
+        const d = `M ${a.svgX} ${a.svgY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${b.svgX} ${b.svgY}`;
+        overlayEl.appendChild(mk("path", { d, class: "snake-body" }));
+        // رأس بسيط عند البداية (from)
+        const head = mk("polygon", {
+          points: `${a.svgX},${a.svgY} ${a.svgX - 0.25},${a.svgY + 0.15} ${
+            a.svgX + 0.25
+          },${a.svgY + 0.15}`,
+          class: "snake-head",
+        });
+        overlayEl.appendChild(head);
+      }
+
+      // عشوائية الكروت تحت قيود المستخدم
+      function applyRandomCards() {
+        const steps = state.steps;
+        const density = Number($("#cardsDensity").value); // 0..35
+        const totalCards = Math.floor((steps * density) / 100);
+        const redP = $("#randomizeShare").checked
+          ? Math.floor(Math.random() * 101)
+          : Number($("#redShare").value);
+        const redCount = Math.floor((totalCards * redP) / 100);
+        const yellowCount = totalCards - redCount;
+
+        // تصفية الخانات بحسب أقصى قرب مسموح للنهاية
+        const redPool = Array.from({ length: steps - 1 }, (_, i) => i + 1); // 1..steps-1 (أقرب شيء مسموح: steps-1)
+        const yellowPool = Array.from({ length: steps - 2 }, (_, i) => i + 1); // 1..steps-2 (أقرب: steps-2)
+
+        shuffle(redPool);
+        shuffle(yellowPool);
+        const reds = new Set(
+          redPool.slice(0, Math.min(redCount, redPool.length))
+        );
+        const yellows = new Set();
+        for (const s of yellowPool) {
+          if (yellows.size >= yellowCount) break;
+          if (!reds.has(s)) yellows.add(s);
+        }
+
+        // طبّق الأنواع
+        state.cells.forEach((c, idx) => {
+          c.card = "none";
+        });
+        for (const s of reds) state.cells[s - 1].card = "red";
+        for (const s of yellows) state.cells[s - 1].card = "yellow";
+      }
+
+      // عشوائية السلالم والثعابين مع القيود
+      function applyRandomLinks() {
+        state.ladders = [];
+        state.snakes = [];
+        const steps = state.steps;
+        const laddersN = clamp(Number($("#ladderCount").value || 0), 0, 50);
+        const snakesN = clamp(Number($("#snakeCount").value || 0), 0, 50);
+
+        // Pools
+        const ladderFromPool = Array.from(
+          { length: steps - 3 },
+          (_, i) => i + 1
+        ); // لا تبدأ من آخر ثلاث خانات
+        const ladderToPool = Array.from({ length: steps - 2 }, (_, i) => i + 2); // النهاية <= steps-2
+        const snakeFromPool = Array.from(
+          { length: steps - 2 },
+          (_, i) => i + 1
+        ); // الرأس <= steps-2
+        const snakeToPool = Array.from({ length: steps - 3 }, (_, i) => i + 1);
+        shuffle(ladderFromPool);
+        shuffle(ladderToPool);
+        shuffle(snakeFromPool);
+        shuffle(snakeToPool);
+
+        const used = new Set();
+
+        // ladders
+        for (let i = 0; i < laddersN; i++) {
+          let tries = 0,
+            placed = false;
+          while (tries++ < 400 && !placed) {
+            const from =
+              ladderFromPool[Math.floor(Math.random() * ladderFromPool.length)];
+            const to =
+              ladderToPool[Math.floor(Math.random() * ladderToPool.length)];
+            if (!(from && to)) break;
+            if (to <= from + 1) continue; // يجب أن يصعد
+            if (to > steps - 2) continue; // أقرب للنهاية: -2
+            if (used.has(from) || used.has(to)) continue; // تجنّب التطابقات البسيطة
+            used.add(from);
+            used.add(to);
+            state.ladders.push({ from, to });
+            placed = true;
+          }
+        }
+
+        // snakes
+        for (let i = 0; i < snakesN; i++) {
+          let tries = 0,
+            placed = false;
+          while (tries++ < 400 && !placed) {
+            const from =
+              snakeFromPool[Math.floor(Math.random() * snakeFromPool.length)];
+            const to =
+              snakeToPool[Math.floor(Math.random() * snakeToPool.length)];
+            if (!(from && to)) break;
+            if (from <= to + 1) continue; // يجب أن يهبط
+            if (from > steps - 2) continue; // أقرب للنهاية: -2
+            if (used.has(from) || used.has(to)) continue;
+            used.add(from);
+            used.add(to);
+            state.snakes.push({ from, to });
+            placed = true;
+          }
+        }
+      }
+
+      function shuffle(a) {
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      // تحقق شامل
+      function validate() {
+        const warn = [];
+        const steps = state.steps;
+
+        // تحقق من الكروت بالنسبة للنهاية
+        state.cells.forEach((c, idx) => {
+          const s = idx + 1;
+          if (c.card === "red" && s > steps - 1)
+            warn.push(
+              `الكرت الأحمر لا يمكن أن يكون في الخانة ${s} (الأقرب المسموح: ${
+                steps - 1
+              }).`
+            );
+          if (c.card === "yellow" && s > steps - 2)
+            warn.push(
+              `الكرت الأصفر لا يمكن أن يكون في الخانة ${s} (الأقرب المسموح: ${
+                steps - 2
+              }).`
+            );
+        });
+
+        // ladders
+        for (const { from, to } of state.ladders) {
+          if (!(from >= 1 && from <= steps && to >= 1 && to <= steps))
+            warn.push(`سلم خارج النطاق: ${from}→${to}`);
+          if (!(to > from)) warn.push(`السلم يجب أن يصعد: ${from}→${to}`);
+          if (to > steps - 2)
+            warn.push(`قمة السلم يجب ألا تتجاوز ${steps - 2}: (${from}→${to})`);
+        }
+
+        // snakes
+        for (const { from, to } of state.snakes) {
+          if (!(from >= 1 && from <= steps && to >= 1 && to <= steps))
+            warn.push(`ثعبان خارج النطاق: ${from}→${to}`);
+          if (!(from > to)) warn.push(`الثعبان يجب أن يهبط: ${from}→${to}`);
+          if (from > steps - 2)
+            warn.push(
+              `رأس الثعبان لا يقترب من النهاية أكثر من ${
+                steps - 2
+              }: (${from}→${to})`
+            );
+        }
+
+        // نسبة الكروت العشوائية (في حال كانت فعالة)
+        if ($("#cardsRandom").checked) {
+          const density = Number($("#cardsDensity").value);
+          if (density > 35)
+            warn.push("نسبة الكروت العشوائية يجب ألا تتجاوز 35%.");
+        }
+
+        // عرض التحذيرات
+        const warnBox = $("#warnings");
+        const list = $("#warnList");
+        list.innerHTML = "";
+        if (warn.length) {
+          warnBox.style.display = "block";
+          warn.forEach((w) => {
+            const li = document.createElement("li");
+            li.textContent = w;
+            list.appendChild(li);
+          });
+        } else {
+          warnBox.style.display = "none";
+        }
+
+        return warn.length === 0;
+      }
+
+      // أحداث النموذج
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const steps = clamp(Number($("#steps").value) || 100, 10, 400);
+        const cols = clamp(Number($("#cols").value) || 10, 4, 15);
+
+        // إعادة تهيئة إن تغيّر العدد
+        if (steps !== state.steps) {
+          initCells(steps);
+          state.steps = steps;
+        }
+        state.cols = cols;
+
+        // القيم العشوائية داخل الخانات
+        if ($("#fillRandomVals").value === "yes") {
+          state.cells.forEach(
+            (c) => (c.val = 1 + Math.floor(Math.random() * 10))
+          );
+        }
+
+        // الكروت
+        if ($("#cardsRandom").checked) {
+          applyRandomCards();
+        }
+
+        // السلالم والثعابين
+        if ($("#linksRandom").checked) {
+          applyRandomLinks();
+        } else {
+          // جمع من القائمة اليدوية
+          const items = $$("#linksList .link-item");
+          state.ladders = [];
+          state.snakes = [];
+          for (const it of items) {
+            const kind = it.querySelector(".kind").value;
+            const from = Number(it.querySelector(".from").value);
+            const to = Number(it.querySelector(".to").value);
+            if (kind === "ladder") state.ladders.push({ from, to });
+            else state.snakes.push({ from, to });
+          }
+        }
+
+        if (!validate()) return;
+        drawBoard();
+      });
+
+      // إدارة روابط يدوية
+      function addLinkRow(kind = "ladder", from = "", to = "") {
+        const wrap = document.createElement("div");
+        wrap.className = "row link-item";
+        wrap.innerHTML = `
+        <select class="kind">
+          <option value="ladder" ${
+            kind === "ladder" ? "selected" : ""
+          }>سلم</option>
+          <option value="snake" ${
+            kind === "snake" ? "selected" : ""
+          }>ثعبان</option>
+        </select>
+        <input class="from" type="number" min="1" placeholder="من" value="${from}">
+        <input class="to" type="number" min="1" placeholder="إلى" value="${to}">
+        <button type="button" class="btn danger del">حذف</button>
+      `;
+        wrap
+          .querySelector(".del")
+          .addEventListener("click", () => wrap.remove());
+        $("#linksList").appendChild(wrap);
+      }
+      $("#addLadder").addEventListener("click", () => addLinkRow("ladder"));
+      $("#addSnake").addEventListener("click", () => addLinkRow("snake"));
+      $("#clearLinks").addEventListener(
+        "click",
+        () => ($("#linksList").innerHTML = "")
+      );
+
+      // محرر الخانة المنفردة
+      const cellDlg = $("#cellDialog");
+      const cellVal = $("#cellVal");
+      const cellCard = $("#cellCard");
+      const cellQ = $("#cellQ");
+      const cellImg = $("#cellImg");
+      let editingStep = null;
+
+      function openCellEditor(step) {
+        editingStep = step;
+        const c = state.cells[step - 1];
+        $("#cellDialogStep").textContent = `#${step}`;
+        cellVal.value = c.val ?? "";
+        cellCard.value = c.card || "none";
+        cellQ.value = c.q || "";
+        cellImg.value = "";
+        cellDlg.showModal();
+      }
+      $("#closeCell").addEventListener("click", () => cellDlg.close());
+
+      $("#clearImg").addEventListener("click", () => {
+        if (editingStep) {
+          state.cells[editingStep - 1].imgUrl = null;
+          drawBoard();
+        }
+      });
+
+      $("#saveCell").addEventListener("click", () => {
+        if (!editingStep) return;
+        const c = state.cells[editingStep - 1];
+        c.val = clamp(Number(cellVal.value) || 1, 1, 10);
+        c.card = cellCard.value;
+        c.q = cellQ.value.trim();
+        const f = cellImg.files && cellImg.files[0];
+        if (f) {
+          const url = URL.createObjectURL(f);
+          c.imgUrl = url;
+        }
+        cellDlg.close();
+        if (!validate()) return; // قد يظهر تحذير إن خالفت القيود
+        drawBoard();
+      });
+
+      // محرر مجمّع بسيط
+      const bulkDlg = $("#bulkDialog");
+      $("#openBulk").addEventListener("click", () => bulkDlg.showModal());
+      $("#closeBulk").addEventListener("click", () => bulkDlg.close());
+      $("#applyBulk").addEventListener("click", () => {
+        const rng = $("#bulkRange").value.trim();
+        const vals = $("#bulkValues")
+          .value.split(",")
+          .map((s) => Number(s.trim()))
+          .filter((n) => !isNaN(n));
+        const q = $("#bulkQuestion").value.trim();
+        let [a, b] = [1, state.steps];
+        if (/^(\d+)\s*-\s*(\d+)$/.test(rng)) {
+          const m = rng.match(/(\d+)\s*-\s*(\d+)/);
+          a = Number(m[1]);
+          b = Number(m[2]);
+          if (a > b) [a, b] = [b, a];
+        }
+        let k = 0;
+        for (let s = a; s <= b; s++) {
+          if (vals.length) {
+            state.cells[s - 1].val = clamp(vals[k % vals.length], 1, 10);
+            k++;
+          }
+          if (q) state.cells[s - 1].q = q;
+        }
+        bulkDlg.close();
+        drawBoard();
+      });
+
+      // تصدير/استيراد JSON
+      $("#exportJSON").addEventListener("click", () => {
+        const data = JSON.stringify(state, null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "board-config.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+      $("#importBtn").addEventListener("click", () => $("#importJSON").click());
+      $("#importJSON").addEventListener("change", (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const rdr = new FileReader();
+        rdr.onload = () => {
+          try {
+            const obj = JSON.parse(rdr.result);
+            loadState(obj);
+            drawBoard();
+          } catch (err) {
+            alert("ملف غير صالح");
+          }
+        };
+        rdr.readAsText(f);
+      });
+
+      function loadState(obj) {
+        state.steps = clamp(Number(obj.steps) || 100, 10, 400);
+        state.cols = clamp(Number(obj.cols) || 10, 4, 15);
+        state.cells = (obj.cells || []).slice(0, state.steps).map((c) => ({
+          val: clamp(Number(c.val) || 1, 1, 10),
+          card: c.card === "yellow" || c.card === "red" ? c.card : "none",
+          q: (c.q || "") + "",
+          imgUrl: c.imgUrl || null,
+        }));
+        while (state.cells.length < state.steps)
+          state.cells.push({ val: 1, card: "none", q: "", imgUrl: null });
+        state.ladders = Array.isArray(obj.ladders)
+          ? obj.ladders.map((x) => ({ from: Number(x.from), to: Number(x.to) }))
+          : [];
+        state.snakes = Array.isArray(obj.snakes)
+          ? obj.snakes.map((x) => ({ from: Number(x.from), to: Number(x.to) }))
+          : [];
+        $("#steps").value = state.steps;
+        $("#cols").value = state.cols;
+      }
+
+      // بداية: تهيئة ورسم أولي
+      initCells(state.steps);
+      applyRandomCards();
+      applyRandomLinks();
+      drawBoard();
+    </script>
+  </body>
+</html>
