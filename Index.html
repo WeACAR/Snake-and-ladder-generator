@@ -811,7 +811,7 @@ function placeLabel(step, text) {
         const yellowCount = totalCards - redCount;
 
         // تصفية الخانات بحسب أقصى قرب مسموح للنهاية
-        const redPool = Array.from({ length: steps - 1 }, (_, i) => i + 1); // 1..steps-1 (أقرب شيء مسموح: steps-1)
+        const redPool = Array.from({ length: steps }, (_, i) => i + 1); // 1..steps (أقرب شيء مسموح: steps)
         const yellowPool = Array.from({ length: steps - 2 }, (_, i) => i + 1); // 1..steps-2 (أقرب: steps-2)
 
         shuffle(redPool);
@@ -916,12 +916,7 @@ function placeLabel(step, text) {
         // تحقق من الكروت بالنسبة للنهاية
         state.cells.forEach((c, idx) => {
           const s = idx + 1;
-          if (c.card === "red" && s > steps - 1)
-            warn.push(
-              `الكرت الأحمر لا يمكن أن يكون في الخانة ${s} (الأقرب المسموح: ${
-                steps - 1
-              }).`
-            );
+          
           if (c.card === "yellow" && s > steps - 2)
             warn.push(
               `الكرت الأصفر لا يمكن أن يكون في الخانة ${s} (الأقرب المسموح: ${
